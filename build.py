@@ -215,8 +215,8 @@ html = f"""<!DOCTYPE html>
 
     /* ── MAIN ── */
     main {{ max-width: 1000px; margin: 0 auto; padding: 2rem; }}
-    .tab-panel {{ display: none; }}
-    .tab-panel.active {{ display: block; }}
+    .tab-panel {{ display: none !important; }}
+    .tab-panel.active {{ display: block !important; }}
 
     /* ── SHOWCASE ── */
     .showcase-section {{ background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 1rem; overflow: hidden; border: 1px solid var(--gray-border); }}
