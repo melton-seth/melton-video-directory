@@ -465,7 +465,7 @@ html = f"""<!DOCTYPE html>
   <!-- PASSCODE GATE -->
   <div id="gate">
     <div class="gate-card">
-      <img src="Melton__Logo2.png" alt="Melton" class="gate-logo" />
+      <img src="melton-logo.png" alt="Melton" class="gate-logo" />
       <h1>Video Library</h1>
       <p>Enter the access code to continue.</p>
       <input type="password" id="pw-input" class="gate-input" placeholder="••••••••" autocomplete="current-password" />
@@ -479,7 +479,7 @@ html = f"""<!DOCTYPE html>
 
     <header class="site-header">
       <div class="header-left">
-        <img src="Melton__Logo2.png" alt="Melton" class="header-logo" />
+        <img src="melton-logo.png" alt="Melton" class="header-logo" />
         <div class="header-divider"></div>
         <div>
           <div class="header-title">Video Library</div>
