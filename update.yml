@@ -1,0 +1,47 @@
+name: Update Video Directory
+
+on:
+  schedule:
+    # Runs nightly at 2:00 AM UTC
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    # Allows manual trigger from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fetch videos from Vimeo API
+        env:
+          VIMEO_TOKEN: ${{ secrets.VIMEO_TOKEN }}
+        run: python fetch_videos.py
+
+      - name: Build index.html
+        env:
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+        run: python build.py
+
+      - name: Copy logo to output
+        run: |
+          # Logo is committed to the repo and served alongside index.html
+          echo "Logo already in repo root — nothing to copy."
+
+      - name: Commit and push updated files
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.json index.html
+          git diff --cached --quiet || git commit -m "chore: update video directory [$(date -u '+%Y-%m-%d %H:%M UTC')]"
+          git push
