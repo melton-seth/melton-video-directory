@@ -80,7 +80,7 @@ def showcase_section(s, idx):
 
     return (
         f'<section class="showcase-section" data-showcase-idx="{idx}">'
-        f'<button class="showcase-header" onclick="toggleShowcase(this)" aria-expanded="false">'
+        f'<div class="showcase-header" onclick="toggleShowcase(this)" aria-expanded="false" role="button" tabindex="0">'
         f'<div class="showcase-title-row">'
         f'<span class="showcase-chevron">{CHEV_SVG}</span>'
         f'<span class="showcase-title"><a href="{url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{title}</a></span>'
@@ -90,7 +90,7 @@ def showcase_section(s, idx):
         f'<button class="copy-btn copy-md showcase-copy" data-url="{url}" data-title="{title_attr}" title="Copy as Markdown" aria-label="Copy showcase as Markdown" onclick="event.stopPropagation()">{LINK_SVG}</button>'
         f'</span>'
         f'</div>'
-        f'</button>'
+        f'</div>'
         f'<div class="showcase-body" hidden>'
         f'<table class="video-table">'
         f'<thead><tr><th>Title</th><th class="date-col">Date Added</th><th class="copy-col"></th></tr></thead>'
@@ -167,7 +167,7 @@ CSS = """
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
     .showcase-section { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 1rem; overflow: hidden; border: 1px solid var(--gray-border); }
-    .showcase-header { width: 100%; background: var(--blue); padding: 0.9rem 1.5rem; border: none; cursor: pointer; text-align: left; transition: background 0.15s; }
+    .showcase-header { width: 100%; background: var(--blue); padding: 0.9rem 1.5rem; border: none; cursor: pointer; text-align: left; transition: background 0.15s; user-select: none; display: block; }
     .showcase-header:hover { background: var(--blue-dark); }
     .showcase-title-row { display: flex; align-items: center; gap: 0.75rem; }
     .showcase-chevron { flex-shrink: 0; width: 18px; height: 18px; color: rgba(255,255,255,0.7); transition: transform 0.2s; }
