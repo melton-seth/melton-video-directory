@@ -32,7 +32,6 @@ def video_row(v, context="all"):
     description = (v.get("description") or "").strip()
     desc_escaped = description.replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;")
 
-    # Disclosure triangle only shown if description exists
     if description:
         disc_btn = (
             f'<button class="desc-toggle" onclick="toggleDesc(this)" aria-expanded="false" title="Show description">'
@@ -41,20 +40,26 @@ def video_row(v, context="all"):
         )
         desc_row = (
             f'<tr class="desc-row" hidden>'
-            f'<td colspan="3" class="desc-cell">{desc_escaped}</td>'
+            f'<td colspan="4" class="desc-cell">{desc_escaped}</td>'
             f'</tr>'
         )
     else:
         disc_btn = '<span class="desc-toggle-placeholder"></span>'
         desc_row = ""
 
+    title_escaped = title.replace("'", "\\'")
     main_row = (
         f'<tr data-title="{title.lower()}" data-date="{date_raw}" data-context="{context}">'
         f'<td class="title-cell">{disc_btn}<a href="{url}" target="_blank" rel="noopener">{title}</a></td>'
         f'<td class="date-col">{date}</td>'
-        f'<td class="copy-col"><button class="copy-btn" data-url="{url}" title="Copy link" aria-label="Copy link">'
+        f'<td class="copy-col">'
+        f'<button class="copy-btn copy-url" data-url="{url}" title="Copy link" aria-label="Copy link">'
         f'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
-        f'</button></td>'
+        f'</button>'
+        f'<button class="copy-btn copy-md" data-url="{url}" data-title="{title_escaped}" title="Copy as Markdown" aria-label="Copy as Markdown">'
+        f'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>'
+        f'</button>'
+        f'</td>'
         f'</tr>'
         f'{desc_row}'
     )
@@ -67,7 +72,7 @@ def showcase_section(s, idx):
     count = len(s["videos"])
     count_label = f"{count} video{'s' if count != 1 else ''}"
     videos_html = "".join(video_row(v, context="showcase") for v in s["videos"]) if s["videos"] else \
-        '<tr><td colspan="3" class="empty-row">No videos in this showcase.</td></tr>'
+        '<tr><td colspan="4" class="empty-row">No videos in this showcase.</td></tr>'
 
     return f"""
     <section class="showcase-section" data-showcase-idx="{idx}">
@@ -104,7 +109,6 @@ all_showcases_html = "".join(showcase_section(s, i) for i, s in enumerate(showca
 total_videos = len(videos)
 total_showcases = len(showcases)
 
-# Build video data for JS (for dynamic filter dropdowns)
 videos_json = json.dumps([{"date_raw": v.get("date_raw", "")} for v in videos])
 showcase_videos_json = json.dumps([
     {"date_raw": v.get("date_raw", "")}
@@ -117,6 +121,7 @@ html = f"""<!DOCTYPE html>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Melton Video Library</title>
+  <link rel="icon" type="image/png" href="melton-logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
@@ -210,8 +215,6 @@ html = f"""<!DOCTYPE html>
     .showcase-title a {{ color: inherit; text-decoration: none; }}
     .showcase-title a:hover {{ text-decoration: underline; opacity: 0.9; }}
     .showcase-count {{ font-size: 0.75rem; font-weight: 700; background: rgba(255,255,255,0.2); color: var(--white); padding: 0.2rem 0.65rem; border-radius: 20px; white-space: nowrap; }}
-    .showcase-body {{ border-top: none; }}
-    .showcase-section.has-match .showcase-body {{ display: block !important; }}
 
     /* ── TABLES ── */
     .video-table {{ width: 100%; border-collapse: collapse; }}
@@ -224,18 +227,10 @@ html = f"""<!DOCTYPE html>
     .video-table a {{ color: var(--blue); text-decoration: none; font-weight: 600; }}
     .video-table a:hover {{ color: var(--orange); text-decoration: underline; }}
     .date-col {{ white-space: nowrap; color: var(--gray-text); font-size: 0.82rem; width: 150px; }}
-    .copy-col {{ width: 44px; text-align: center; }}
+    .copy-col {{ width: 64px; text-align: right; white-space: nowrap; }}
     .empty-row {{ color: var(--gray-text); font-style: italic; text-align: center; padding: 1.5rem !important; }}
     .no-results-row {{ display: none; }}
     .no-results-row.visible {{ display: table-row; }}
-
-    /* ── COPY BUTTON ── */
-    .copy-btn {{ background: none; border: none; cursor: pointer; padding: 0.3rem; border-radius: 6px; color: var(--blue-light); transition: color 0.15s, background 0.15s; position: relative; display: flex; align-items: center; justify-content: center; }}
-    .copy-btn svg {{ width: 15px; height: 15px; }}
-    .copy-btn:hover {{ color: var(--blue); background: var(--blue-pale); }}
-    .copy-btn.copied {{ color: var(--green); }}
-    .copy-btn .tooltip {{ position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--text); color: var(--white); font-size: 0.72rem; font-family: var(--font); padding: 0.25rem 0.5rem; border-radius: 4px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s; }}
-    .copy-btn:hover .tooltip {{ opacity: 1; }}
 
     /* ── DESCRIPTION TOGGLE ── */
     .title-cell {{ display: flex; align-items: center; gap: 0.4rem; }}
@@ -245,9 +240,17 @@ html = f"""<!DOCTYPE html>
     .desc-toggle[aria-expanded="true"] {{ transform: rotate(90deg); color: var(--blue); }}
     .desc-toggle-placeholder {{ display: inline-block; width: 22px; flex-shrink: 0; }}
     .desc-row td {{ padding: 0 !important; }}
-    .desc-cell {{ padding: 0.6rem 1.2rem 0.8rem 3rem !important; font-size: 0.85rem; color: var(--gray-text); background: #f8faff; border-top: none !important; line-height: 1.6; white-space: pre-wrap; }}
+    .desc-cell {{ padding: 0.6rem 1.2rem 0.8rem 3rem !important; font-size: 0.85rem; color: var(--gray-text); background: #f8faff; line-height: 1.6; white-space: pre-wrap; }}
     .video-table tbody tr.desc-row {{ background: #f8faff; }}
     .video-table tbody tr.desc-row:hover {{ background: #f8faff; }}
+
+    /* ── COPY BUTTONS ── */
+    .copy-btn {{ background: none; border: none; cursor: pointer; padding: 0.3rem; border-radius: 6px; color: var(--blue-light); transition: color 0.15s, background 0.15s; position: relative; display: inline-flex; align-items: center; justify-content: center; }}
+    .copy-btn svg {{ width: 15px; height: 15px; }}
+    .copy-btn:hover {{ color: var(--blue); background: var(--blue-pale); }}
+    .copy-btn.copied {{ color: var(--green); }}
+    .copy-btn .tooltip {{ position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--text); color: var(--white); font-size: 0.72rem; font-family: var(--font); padding: 0.25rem 0.5rem; border-radius: 4px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 10; }}
+    .copy-btn:hover .tooltip {{ opacity: 1; }}
 
     /* ── ALL VIDEOS CARD ── */
     .all-videos-card {{ background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--gray-border); overflow: hidden; }}
@@ -312,18 +315,22 @@ html = f"""<!DOCTYPE html>
         <input type="search" id="search-input" class="search-input" placeholder="Search videos…" oninput="applyFilters()" />
       </div>
       <select id="filter-fy" class="filter-select" onchange="applyFilters()"><option value="">All Years</option></select>
-      <select id="filter-q" class="filter-select" onchange="applyFilters()"><option value="">All Quarters</option></select>
+      <select id="filter-q" class="filter-select" onchange="applyFilters()">
+        <option value="">All Quarters</option>
+        <option value="1">Q1 (Jul–Sep)</option>
+        <option value="2">Q2 (Oct–Dec)</option>
+        <option value="3">Q3 (Jan–Mar)</option>
+        <option value="4">Q4 (Apr–Jun)</option>
+      </select>
       <select id="filter-month" class="filter-select" onchange="applyFilters()"><option value="">All Months</option></select>
       <button class="filter-clear" onclick="clearFilters()">Clear</button>
       <span class="filter-results" id="filter-results"></span>
     </div>
 
     <main>
-
       <div id="tab-showcases" class="tab-panel active">
         {all_showcases_html if showcases else '<p style="color:var(--gray-text);padding:2rem 0;">No showcases found.</p>'}
       </div>
-
       <div id="tab-all-videos" class="tab-panel">
         <div class="all-videos-card">
           <div class="section-header">All Videos — sorted by date, newest first</div>
@@ -336,13 +343,12 @@ html = f"""<!DOCTYPE html>
               </tr>
             </thead>
             <tbody>
-              {all_videos_html if videos else '<tr><td colspan="3" class="empty-row">No videos found.</td></tr>'}
-              <tr class="no-results-row" id="all-no-results"><td colspan="3" class="empty-row">No videos match your filters.</td></tr>
+              {all_videos_html if videos else '<tr><td colspan="4" class="empty-row">No videos found.</td></tr>'}
+              <tr class="no-results-row" id="all-no-results"><td colspan="4" class="empty-row">No videos match your filters.</td></tr>
             </tbody>
           </table>
         </div>
       </div>
-
     </main>
 
     <footer class="site-footer">
@@ -354,15 +360,70 @@ html = f"""<!DOCTYPE html>
 
   <script>
     const PW_HASH = "{pw_hash}";
+    const allVideoDates = {videos_json};
+    const showcaseVideoDates = {showcase_videos_json};
 
-    // ── DESCRIPTION TOGGLE ──
-    function toggleDesc(btn) {{
-      const mainRow = btn.closest("tr");
-      const descRow = mainRow.nextElementSibling;
-      if (!descRow || !descRow.classList.contains("desc-row")) return;
-      const expanded = btn.getAttribute("aria-expanded") === "true";
-      btn.setAttribute("aria-expanded", !expanded);
-      descRow.hidden = expanded;
+    // ── FISCAL YEAR HELPERS ──
+    function getFY(dateStr) {{
+      if (!dateStr) return null;
+      const d = new Date(dateStr);
+      const y = d.getUTCFullYear(), m = d.getUTCMonth();
+      return m >= 6 ? y + 1 : y;
+    }}
+    function getFYQ(dateStr) {{
+      if (!dateStr) return null;
+      const m = new Date(dateStr).getUTCMonth();
+      if (m >= 6 && m <= 8)  return 1;
+      if (m >= 9 && m <= 11) return 2;
+      if (m >= 0 && m <= 2)  return 3;
+      return 4;
+    }}
+
+    // ── FILTER INIT — must be defined before auth runs ──
+    let filtersInitialized = false;
+    function initFilters() {{
+      if (filtersInitialized) return;
+      filtersInitialized = true;
+
+      const allDates = [...allVideoDates, ...showcaseVideoDates].map(v => v.date_raw).filter(Boolean);
+      const fySet = new Set(), monthSet = new Set();
+      allDates.forEach(d => {{
+        const fy = getFY(d);
+        if (fy) fySet.add(fy);
+        monthSet.add(new Date(d).getUTCMonth());
+      }});
+
+      const fyEl = document.getElementById("filter-fy");
+      [...fySet].sort((a,b) => b - a).forEach(fy => {{
+        const opt = document.createElement("option");
+        opt.value = fy;
+        opt.textContent = `FY${{fy}}`;
+        fyEl.appendChild(opt);
+      }});
+
+      const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+      const monthEl = document.getElementById("filter-month");
+      const fyMonthOrder = [6,7,8,9,10,11,0,1,2,3,4,5];
+      fyMonthOrder.filter(m => monthSet.has(m)).forEach(m => {{
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = monthNames[m];
+        monthEl.appendChild(opt);
+      }});
+
+      // Add tooltips to copy buttons
+      document.querySelectorAll(".copy-url").forEach(btn => {{
+        const tip = document.createElement("span");
+        tip.className = "tooltip";
+        tip.textContent = "Copy link";
+        btn.appendChild(tip);
+      }});
+      document.querySelectorAll(".copy-md").forEach(btn => {{
+        const tip = document.createElement("span");
+        tip.className = "tooltip";
+        tip.textContent = "Copy as Markdown";
+        btn.appendChild(tip);
+      }});
     }}
 
     // ── AUTH ──
@@ -412,58 +473,14 @@ html = f"""<!DOCTYPE html>
       body.hidden = expanded;
     }}
 
-    // ── FISCAL YEAR HELPERS ──
-    // FY is July–June: FY2025 = Jul 2024 – Jun 2025
-    function getFY(dateStr) {{
-      if (!dateStr) return null;
-      const d = new Date(dateStr);
-      const y = d.getUTCFullYear(), m = d.getUTCMonth(); // 0-indexed
-      return m >= 6 ? y + 1 : y; // Jul(6)+ => next year's FY
-    }}
-    function getFYQ(dateStr) {{
-      if (!dateStr) return null;
-      const d = new Date(dateStr);
-      const m = d.getUTCMonth();
-      // Q1=Jul-Sep(6-8), Q2=Oct-Dec(9-11), Q3=Jan-Mar(0-2), Q4=Apr-Jun(3-5)
-      if (m >= 6 && m <= 8)  return 1;
-      if (m >= 9 && m <= 11) return 2;
-      if (m >= 0 && m <= 2)  return 3;
-      return 4;
-    }}
-
-    // ── FILTER INIT ──
-    // Build dropdowns dynamically from all video dates
-    const allVideoDates = {videos_json};
-    const showcaseVideoDates = {showcase_videos_json};
-
-    function initFilters() {{
-      const allDates = [...allVideoDates, ...showcaseVideoDates].map(v => v.date_raw).filter(Boolean);
-      const fySet = new Set(), monthSet = new Set();
-      allDates.forEach(d => {{
-        const fy = getFY(d);
-        if (fy) fySet.add(fy);
-        const dt = new Date(d);
-        monthSet.add(dt.getUTCMonth()); // 0-indexed
-      }});
-
-      const fyEl = document.getElementById("filter-fy");
-      [...fySet].sort((a,b) => b - a).forEach(fy => {{
-        const opt = document.createElement("option");
-        opt.value = fy;
-        opt.textContent = `FY${{fy}}`;
-        fyEl.appendChild(opt);
-      }});
-
-      const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-      const monthEl = document.getElementById("filter-month");
-      // Sort months in FY order: Jul=6, Aug=7, ... Jun=5
-      const fyMonthOrder = [6,7,8,9,10,11,0,1,2,3,4,5];
-      fyMonthOrder.filter(m => monthSet.has(m)).forEach(m => {{
-        const opt = document.createElement("option");
-        opt.value = m;
-        opt.textContent = monthNames[m];
-        monthEl.appendChild(opt);
-      }});
+    // ── DESCRIPTION TOGGLE ──
+    function toggleDesc(btn) {{
+      const mainRow = btn.closest("tr");
+      const descRow = mainRow.nextElementSibling;
+      if (!descRow || !descRow.classList.contains("desc-row")) return;
+      const expanded = btn.getAttribute("aria-expanded") === "true";
+      btn.setAttribute("aria-expanded", !expanded);
+      descRow.hidden = expanded;
     }}
 
     // ── FILTERING ──
@@ -494,15 +511,11 @@ html = f"""<!DOCTYPE html>
         rows.forEach(row => {{
           const show = rowMatches(row);
           row.classList.toggle("hidden", !show);
-          // Also hide the associated desc-row if main row is hidden
           const next = row.nextElementSibling;
-          if (next && next.classList.contains("desc-row")) {{
-            next.classList.toggle("hidden", !show);
-          }}
+          if (next && next.classList.contains("desc-row")) next.classList.toggle("hidden", !show);
           if (show) visible++;
         }});
-        const noRes = document.getElementById("all-no-results");
-        noRes.classList.toggle("visible", visible === 0);
+        document.getElementById("all-no-results").classList.toggle("visible", visible === 0);
         updateResultsLabel(visible, rows.length);
       }} else {{
         let totalVisible = 0, totalRows = 0;
@@ -513,21 +526,16 @@ html = f"""<!DOCTYPE html>
             const show = rowMatches(row);
             row.classList.toggle("hidden", !show);
             const next = row.nextElementSibling;
-            if (next && next.classList.contains("desc-row")) {{
-              next.classList.toggle("hidden", !show);
-            }}
+            if (next && next.classList.contains("desc-row")) next.classList.toggle("hidden", !show);
             if (show) vis++;
           }});
           totalVisible += vis;
           totalRows += rows.length;
           const hasFilter = q || fy || quarter || month !== "";
-          const sectionHidden = hasFilter && vis === 0 && rows.length > 0;
-          section.style.display = sectionHidden ? "none" : "";
+          section.style.display = (hasFilter && vis === 0 && rows.length > 0) ? "none" : "";
           if (hasFilter && vis > 0) {{
-            const btn = section.querySelector(".showcase-header");
-            const body = section.querySelector(".showcase-body");
-            btn.setAttribute("aria-expanded", "true");
-            body.hidden = false;
+            section.querySelector(".showcase-header").setAttribute("aria-expanded", "true");
+            section.querySelector(".showcase-body").hidden = false;
           }}
         }});
         updateResultsLabel(totalVisible, totalRows);
@@ -549,7 +557,6 @@ html = f"""<!DOCTYPE html>
       document.getElementById("filter-q").value = "";
       document.getElementById("filter-month").value = "";
       applyFilters();
-      // Re-collapse all showcases
       document.querySelectorAll(".showcase-header").forEach(btn => {{
         btn.setAttribute("aria-expanded", "false");
         btn.nextElementSibling.hidden = true;
@@ -562,23 +569,20 @@ html = f"""<!DOCTYPE html>
       const btn = e.target.closest(".copy-btn");
       if (!btn) return;
       const url = btn.dataset.url;
-      navigator.clipboard.writeText(url).then(() => {{
+      let text = url;
+      if (btn.classList.contains("copy-md")) {{
+        const title = btn.dataset.title || url;
+        text = `[${{title}}](${{url}})`;
+      }}
+      navigator.clipboard.writeText(text).then(() => {{
         btn.classList.add("copied");
         const tip = btn.querySelector(".tooltip");
-        if (tip) tip.textContent = "Copied!";
+        if (tip) {{ tip.textContent = "Copied!"; }}
         setTimeout(() => {{
           btn.classList.remove("copied");
-          if (tip) tip.textContent = "Copy link";
+          if (tip) tip.textContent = btn.classList.contains("copy-md") ? "Copy as Markdown" : "Copy link";
         }}, 1500);
       }});
-    }});
-
-    // Add tooltips to copy buttons
-    document.querySelectorAll(".copy-btn").forEach(btn => {{
-      const tip = document.createElement("span");
-      tip.className = "tooltip";
-      tip.textContent = "Copy link";
-      btn.appendChild(tip);
     }});
   </script>
 
