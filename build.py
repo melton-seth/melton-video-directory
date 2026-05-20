@@ -484,21 +484,31 @@ html = (
     '      <span class="filter-results" id="filter-results"></span>\n'
     '    </div>\n'
     '    <main>\n'
+)
+
+# Build each tab panel separately to avoid implicit string concatenation bugs
+all_videos_panel = (
     '      <div id="tab-all-videos" class="tab-panel active">\n'
     '        <div class="all-videos-card">\n'
     '          <div class="section-header">All Videos \u2014 sorted by date, newest first</div>\n'
     '          <table class="video-table" id="all-videos-table">\n'
     '            <thead><tr><th>Title</th><th class="date-col">Date Added</th><th class="copy-col"></th></tr></thead>\n'
     '            <tbody>\n'
-    + (all_videos_html if videos else '<tr><td colspan="4" class="empty-row">No videos found.</td></tr>') +
-    '\n              <tr class="no-results-row" id="all-no-results"><td colspan="4" class="empty-row">No videos match your filters.</td></tr>\n'
-    '            </tbody>\n'
-    '          </table>\n'
-    '        </div>\n'
-    '      </div>\n'
+    + (all_videos_html if videos else '<tr><td colspan="4" class="empty-row">No videos found.</td></tr>')
+    + '\n              <tr class="no-results-row" id="all-no-results"><td colspan="4" class="empty-row">No videos match your filters.</td></tr>\n'
+    + '            </tbody>\n'
+    + '          </table>\n'
+    + '        </div>\n'
+    + '      </div>\n'
+)
+
+showcases_panel = (
     '      <div id="tab-showcases" class="tab-panel">\n'
-    + (all_showcases_html if showcases else '<p style="color:#5a6a82;padding:2rem 0;">No showcases found.</p>') +
-    '\n      </div>\n'
+    + (all_showcases_html if showcases else '<p style="color:#5a6a82;padding:2rem 0;">No showcases found.</p>')
+    + '\n      </div>\n'
+)
+
+html += all_videos_panel + showcases_panel + (
     '    </main>\n'
     '    <footer class="site-footer">\n'
     '      <a href="https://meltonschool.org" target="_blank" rel="noopener">meltonschool.org</a>\n'
