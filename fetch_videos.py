@@ -44,7 +44,6 @@ def vimeo_get(path, params=None):
 
         all_data.extend(body.get("data", []))
 
-        # Follow pagination
         paging = body.get("paging", {})
         next_page = paging.get("next")
         url = f"{BASE_URL}{next_page}" if next_page else None
@@ -70,12 +69,13 @@ def extract_video(v):
         "url": v.get("link", ""),
         "date": format_date(v.get("created_time", "")),
         "date_raw": v.get("created_time", ""),
+        "description": (v.get("description") or "").strip(),
     }
 
 
 def main():
     print("Fetching all videos...")
-    raw_videos = vimeo_get("/me/videos", {"per_page": 100, "fields": "name,link,created_time"})
+    raw_videos = vimeo_get("/me/videos", {"per_page": 100, "fields": "name,link,created_time,description"})
     print(f"  Found {len(raw_videos)} video(s).")
 
     all_videos = sorted(
@@ -98,7 +98,7 @@ def main():
         print(f"  Fetching videos for showcase: {s.get('name')}...")
         raw_sv = vimeo_get(
             f"/me/albums/{showcase_id}/videos",
-            {"per_page": 100, "fields": "name,link,created_time"},
+            {"per_page": 100, "fields": "name,link,created_time,description"},
         )
         showcase_videos = sorted(
             [extract_video(v) for v in raw_sv],
