@@ -68,11 +68,25 @@ def video_row(v, context="all"):
 
 def showcase_section(s, idx):
     title = s["title"].replace('"', "&quot;").replace("<", "&lt;")
+    title_escaped = title.replace("'", "\\'")
     url = s["url"]
     count = len(s["videos"])
     count_label = f"{count} video{'s' if count != 1 else ''}"
     videos_html = "".join(video_row(v, context="showcase") for v in s["videos"]) if s["videos"] else \
         '<tr><td colspan="4" class="empty-row">No videos in this showcase.</td></tr>'
+
+    copy_url_btn = (
+        f'<button class="copy-btn copy-url showcase-copy" data-url="{url}" '
+        f'title="Copy showcase link" aria-label="Copy showcase link" onclick="event.stopPropagation()">'
+        f'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
+        f'</button>'
+    )
+    copy_md_btn = (
+        f'<button class="copy-btn copy-md showcase-copy" data-url="{url}" data-title="{title_escaped}" '
+        f'title="Copy as Markdown" aria-label="Copy showcase as Markdown" onclick="event.stopPropagation()">'
+        f'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>'
+        f'</button>'
+    )
 
     return f"""
     <section class="showcase-section" data-showcase-idx="{idx}">
@@ -85,6 +99,7 @@ def showcase_section(s, idx):
             <a href="{url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{title}</a>
           </span>
           <span class="showcase-count">{count_label}</span>
+          <span class="showcase-copy-btns">{copy_url_btn}{copy_md_btn}</span>
         </div>
       </button>
       <div class="showcase-body" hidden>
@@ -121,7 +136,7 @@ html = f"""<!DOCTYPE html>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Melton Video Library</title>
-  <link rel="icon" type="image/png" href="melton-logo.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="melton-logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
@@ -249,8 +264,14 @@ html = f"""<!DOCTYPE html>
     .copy-btn svg {{ width: 15px; height: 15px; }}
     .copy-btn:hover {{ color: var(--blue); background: var(--blue-pale); }}
     .copy-btn.copied {{ color: var(--green); }}
-    .copy-btn .tooltip {{ position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--text); color: var(--white); font-size: 0.72rem; font-family: var(--font); padding: 0.25rem 0.5rem; border-radius: 4px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 10; }}
+    .copy-btn .tooltip {{ position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--text); color: var(--white); font-size: 0.72rem; font-family: var(--font); padding: 0.25rem 0.5rem; border-radius: 4px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 200; }}
     .copy-btn:hover .tooltip {{ opacity: 1; }}
+    .copy-col {{ overflow: visible; }}
+
+    /* ── SHOWCASE COPY BUTTONS ── */
+    .showcase-copy-btns {{ display: flex; gap: 2px; margin-left: auto; flex-shrink: 0; }}
+    .showcase-copy {{ color: rgba(255,255,255,0.5); }}
+    .showcase-copy:hover {{ color: var(--white); background: rgba(255,255,255,0.15); }}
 
     /* ── ALL VIDEOS CARD ── */
     .all-videos-card {{ background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--gray-border); overflow: hidden; }}
@@ -305,8 +326,8 @@ html = f"""<!DOCTYPE html>
     </div>
 
     <div class="tabs-bar">
-      <button class="tab-btn active" onclick="showTab('showcases', this)">Showcases</button>
-      <button class="tab-btn" onclick="showTab('all-videos', this)">All Videos</button>
+      <button class="tab-btn active" onclick="showTab('all-videos', this)">All Videos</button>
+      <button class="tab-btn" onclick="showTab('showcases', this)">Showcases</button>
     </div>
 
     <div class="filter-bar">
@@ -328,10 +349,10 @@ html = f"""<!DOCTYPE html>
     </div>
 
     <main>
-      <div id="tab-showcases" class="tab-panel active">
+      <div id="tab-showcases" class="tab-panel">
         {all_showcases_html if showcases else '<p style="color:var(--gray-text);padding:2rem 0;">No showcases found.</p>'}
       </div>
-      <div id="tab-all-videos" class="tab-panel">
+      <div id="tab-all-videos" class="tab-panel active">
         <div class="all-videos-card">
           <div class="section-header">All Videos — sorted by date, newest first</div>
           <table class="video-table" id="all-videos-table">
@@ -415,7 +436,7 @@ html = f"""<!DOCTYPE html>
       document.querySelectorAll(".copy-url").forEach(btn => {{
         const tip = document.createElement("span");
         tip.className = "tooltip";
-        tip.textContent = "Copy link";
+        tip.textContent = btn.classList.contains("showcase-copy") ? "Copy showcase link" : "Copy link";
         btn.appendChild(tip);
       }});
       document.querySelectorAll(".copy-md").forEach(btn => {{
