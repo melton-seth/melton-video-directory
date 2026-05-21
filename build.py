@@ -214,6 +214,15 @@ CSS = """
     .all-videos-card .section-header { background: var(--blue); padding: 1rem 1.5rem; color: var(--white); font-size: 1.05rem; font-weight: 800; }
     .site-footer { text-align: center; padding: 2rem; font-size: 0.78rem; color: var(--gray-text); }
     .site-footer a { color: var(--blue-mid); text-decoration: none; }
+    .pagination { display: none; align-items: center; gap: 0.4rem; padding: 1rem 1.5rem; background: var(--white); border-top: 1px solid var(--gray-border); flex-wrap: wrap; }
+    .page-info { font-size: 0.8rem; color: var(--gray-text); margin-right: 0.5rem; }
+    .page-btn { padding: 0.3rem 0.65rem; font-family: var(--font); font-size: 0.82rem; font-weight: 700; border: 1.5px solid var(--gray-border); border-radius: 6px; background: var(--white); color: var(--text); cursor: pointer; transition: all 0.15s; }
+    .page-btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+    .page-btn.active { background: var(--blue); color: var(--white); border-color: var(--blue); }
+    .page-btn:disabled { opacity: 0.4; cursor: default; }
+    .page-ellipsis { font-size: 0.82rem; color: var(--gray-text); padding: 0 0.2rem; }
+    .view-all-link { font-size: 0.78rem; color: var(--blue-mid); margin-left: auto; text-decoration: none; }
+    .view-all-link:hover { text-decoration: underline; }
     @media (max-width: 600px) {
       .site-header { padding: 1rem; flex-wrap: wrap; }
       main { padding: 1rem; }
@@ -229,6 +238,10 @@ JS = """
     const PW_HASH = "PWHASH_PLACEHOLDER";
     const allVideoDates = ALLVIDEODATES_PLACEHOLDER;
     const showcaseVideoDates = SHOWCASEVIDEODATES_PLACEHOLDER;
+    const PAGE_SIZE = 50;
+
+    // Auto-reload after 6 hours to avoid stale cache
+    setTimeout(() => location.reload(), 6 * 60 * 60 * 1000);
 
     function getFY(d) {
       if (!d) return null;
@@ -271,6 +284,10 @@ JS = """
       document.querySelectorAll(".copy-md").forEach(btn => {
         const t = document.createElement("span"); t.className = "tooltip"; t.textContent = "Copy as Markdown"; btn.appendChild(t);
       });
+      allMatchedRows = Array.from(document.querySelectorAll("#tab-all-videos tbody tr[data-title]"));
+      showcaseMatchedSections = Array.from(document.querySelectorAll(".showcase-section"));
+      renderAllVideosPage();
+      renderShowcasesPage();
     }
 
     async function sha256(str) {
@@ -309,10 +326,10 @@ JS = """
       btn.classList.add("active");
       applyFilters();
     }
-    function toggleShowcase(btn) {
-      const body = btn.nextElementSibling;
-      const expanded = btn.getAttribute("aria-expanded") === "true";
-      btn.setAttribute("aria-expanded", String(!expanded));
+    function toggleShowcase(el) {
+      const body = el.nextElementSibling;
+      const expanded = el.getAttribute("aria-expanded") === "true";
+      el.setAttribute("aria-expanded", String(!expanded));
       body.hidden = expanded;
     }
     function toggleDesc(btn) {
@@ -326,12 +343,19 @@ JS = """
     function getActiveTab() {
       return document.querySelector(".tab-panel.active").id === "tab-showcases" ? "showcases" : "all";
     }
+
+    let allCurrentPage = 1;
+    let showcaseCurrentPage = 1;
+    let allMatchedRows = [];
+    let showcaseMatchedSections = [];
+
     function applyFilters() {
       const q = document.getElementById("search-input").value.trim().toLowerCase();
       const fy = document.getElementById("filter-fy").value;
       const quarter = document.getElementById("filter-q").value;
       const month = document.getElementById("filter-month").value;
       const tab = getActiveTab();
+      const hasFilter = !!(q || fy || quarter || month);
       function rowMatches(row) {
         const title = row.dataset.title || "";
         const dateRaw = row.dataset.date || "";
@@ -342,60 +366,154 @@ JS = """
         return true;
       }
       if (tab === "all") {
-        const rows = document.querySelectorAll("#tab-all-videos tbody tr[data-title]");
-        let visible = 0;
-        rows.forEach(row => {
-          const show = rowMatches(row);
-          row.classList.toggle("hidden", !show);
-          const next = row.nextElementSibling;
-          if (next && next.classList.contains("desc-row")) next.classList.toggle("hidden", !show);
-          if (show) visible++;
-        });
-        document.getElementById("all-no-results").classList.toggle("visible", visible === 0);
-        updateResultsLabel(visible, rows.length);
+        const rows = Array.from(document.querySelectorAll("#tab-all-videos tbody tr[data-title]"));
+        allMatchedRows = rows.filter(rowMatches);
+        allCurrentPage = 1;
+        renderAllVideosPage();
       } else {
-        let totalVisible = 0, totalRows = 0;
-        document.querySelectorAll(".showcase-section").forEach(section => {
+        const sections = Array.from(document.querySelectorAll(".showcase-section"));
+        sections.forEach(section => {
           const rows = section.querySelectorAll("tbody tr[data-title]");
-          let vis = 0;
           rows.forEach(row => {
-            const show = rowMatches(row);
+            const show = !hasFilter || rowMatches(row);
             row.classList.toggle("hidden", !show);
             const next = row.nextElementSibling;
             if (next && next.classList.contains("desc-row")) next.classList.toggle("hidden", !show);
-            if (show) vis++;
           });
-          totalVisible += vis; totalRows += rows.length;
-          const hasFilter = q || fy || quarter || month !== "";
-          section.style.display = (hasFilter && vis === 0 && rows.length > 0) ? "none" : "";
-          if (hasFilter && vis > 0) {
+          if (hasFilter && Array.from(rows).some(r => !r.classList.contains("hidden"))) {
             section.querySelector(".showcase-header").setAttribute("aria-expanded", "true");
             section.querySelector(".showcase-body").hidden = false;
           }
         });
-        updateResultsLabel(totalVisible, totalRows);
+        showcaseMatchedSections = sections.filter(section => {
+          if (!hasFilter) return true;
+          return Array.from(section.querySelectorAll("tbody tr[data-title]")).some(r => !r.classList.contains("hidden"));
+        });
+        showcaseCurrentPage = 1;
+        renderShowcasesPage();
       }
     }
-    function updateResultsLabel(visible, total) {
+
+    function renderAllVideosPage() {
+      const rows = Array.from(document.querySelectorAll("#tab-all-videos tbody tr[data-title]"));
+      const total = allMatchedRows.length;
+      const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      allCurrentPage = Math.min(allCurrentPage, totalPages);
+      const start = (allCurrentPage - 1) * PAGE_SIZE;
+      const pageRows = new Set(allMatchedRows.slice(start, start + PAGE_SIZE));
+      rows.forEach(row => {
+        const inPage = pageRows.has(row);
+        row.classList.toggle("hidden", !inPage);
+        const next = row.nextElementSibling;
+        if (next && next.classList.contains("desc-row")) next.classList.toggle("hidden", !inPage);
+      });
+      document.getElementById("all-no-results").classList.toggle("visible", total === 0);
+      updateResultsLabel(total, rows.length, "all");
+      renderPagination("all-pagination", allCurrentPage, totalPages, total, "all");
+    }
+
+    function renderShowcasesPage() {
+      const sections = Array.from(document.querySelectorAll(".showcase-section"));
+      const total = showcaseMatchedSections.length;
+      const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      showcaseCurrentPage = Math.min(showcaseCurrentPage, totalPages);
+      const start = (showcaseCurrentPage - 1) * PAGE_SIZE;
+      const pageSet = new Set(showcaseMatchedSections.slice(start, start + PAGE_SIZE));
+      sections.forEach(section => { section.style.display = pageSet.has(section) ? "" : "none"; });
+      updateResultsLabel(total, sections.length, "showcases");
+      renderPagination("showcases-pagination", showcaseCurrentPage, totalPages, total, "showcases");
+    }
+
+    function renderPagination(containerId, currentPage, totalPages, totalItems, tab) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = "";
+      if (totalPages <= 1) { container.style.display = "none"; return; }
+      container.style.display = "flex";
+      const start = (currentPage - 1) * PAGE_SIZE + 1;
+      const end = Math.min(currentPage * PAGE_SIZE, totalItems);
+      const info = document.createElement("span");
+      info.className = "page-info";
+      info.textContent = start + "\u2013" + end + " of " + totalItems;
+      container.appendChild(info);
+      const prev = document.createElement("button");
+      prev.className = "page-btn"; prev.textContent = "\u2190 Prev"; prev.disabled = currentPage === 1;
+      prev.onclick = () => goToPage(tab, currentPage - 1);
+      container.appendChild(prev);
+      pageRange(currentPage, totalPages).forEach(p => {
+        if (p === "...") {
+          const el = document.createElement("span"); el.className = "page-ellipsis"; el.textContent = "\u2026"; container.appendChild(el);
+        } else {
+          const btn = document.createElement("button");
+          btn.className = "page-btn" + (p === currentPage ? " active" : ""); btn.textContent = p;
+          btn.onclick = () => goToPage(tab, p); container.appendChild(btn);
+        }
+      });
+      const next = document.createElement("button");
+      next.className = "page-btn"; next.textContent = "Next \u2192"; next.disabled = currentPage === totalPages;
+      next.onclick = () => goToPage(tab, currentPage + 1);
+      container.appendChild(next);
+      const viewAll = document.createElement("a");
+      viewAll.className = "view-all-link"; viewAll.textContent = "View all"; viewAll.href = "#";
+      viewAll.onclick = e => { e.preventDefault(); showAllItems(tab); };
+      container.appendChild(viewAll);
+    }
+
+    function pageRange(current, total) {
+      if (total <= 7) return Array.from({length: total}, (_, i) => i + 1);
+      const pages = [];
+      if (current <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push("..."); pages.push(total);
+      } else if (current >= total - 3) {
+        pages.push(1); pages.push("...");
+        for (let i = total - 4; i <= total; i++) pages.push(i);
+      } else {
+        pages.push(1); pages.push("...");
+        for (let i = current - 1; i <= current + 1; i++) pages.push(i);
+        pages.push("..."); pages.push(total);
+      }
+      return pages;
+    }
+
+    function goToPage(tab, page) {
+      if (tab === "all") { allCurrentPage = page; renderAllVideosPage(); }
+      else { showcaseCurrentPage = page; renderShowcasesPage(); }
+      document.querySelector(".filter-bar").scrollIntoView({behavior: "smooth", block: "start"});
+    }
+
+    function showAllItems(tab) {
+      if (tab === "all") {
+        allMatchedRows = Array.from(document.querySelectorAll("#tab-all-videos tbody tr[data-title]"));
+        allCurrentPage = 1; renderAllVideosPage();
+      } else {
+        showcaseMatchedSections = Array.from(document.querySelectorAll(".showcase-section"));
+        showcaseCurrentPage = 1; renderShowcasesPage();
+      }
+    }
+
+    function updateResultsLabel(visible, total, tab) {
       const el = document.getElementById("filter-results");
       const hasFilter = document.getElementById("search-input").value.trim() ||
         document.getElementById("filter-fy").value ||
         document.getElementById("filter-q").value ||
         document.getElementById("filter-month").value !== "";
-      el.textContent = hasFilter ? (visible + " of " + total + " videos") : "";
+      const noun = tab === "showcases" ? "showcases" : "videos";
+      el.textContent = hasFilter ? (visible + " of " + total + " " + noun) : "";
     }
+
     function clearFilters() {
       document.getElementById("search-input").value = "";
       document.getElementById("filter-fy").value = "";
       document.getElementById("filter-q").value = "";
       document.getElementById("filter-month").value = "";
-      applyFilters();
       document.querySelectorAll(".showcase-header").forEach(btn => {
         btn.setAttribute("aria-expanded", "false");
         btn.nextElementSibling.hidden = true;
       });
-      document.querySelectorAll(".showcase-section").forEach(s => s.style.display = "");
+      applyFilters();
     }
+
     document.addEventListener("click", e => {
       const btn = e.target.closest(".copy-btn");
       if (!btn) return;
@@ -413,6 +531,7 @@ JS = """
       });
     });
 """
+
 
 # Replace placeholders with actual values (safe — JSON has no {{ }} issues)
 JS = JS.replace("PWHASH_PLACEHOLDER", pw_hash)
@@ -498,6 +617,7 @@ all_videos_panel = (
     + '\n              <tr class="no-results-row" id="all-no-results"><td colspan="4" class="empty-row">No videos match your filters.</td></tr>\n'
     + '            </tbody>\n'
     + '          </table>\n'
+    + '          <div class="pagination" id="all-pagination"></div>\n'
     + '        </div>\n'
     + '      </div>\n'
 )
@@ -505,7 +625,8 @@ all_videos_panel = (
 showcases_panel = (
     '      <div id="tab-showcases" class="tab-panel">\n'
     + (all_showcases_html if showcases else '<p style="color:#5a6a82;padding:2rem 0;">No showcases found.</p>')
-    + '\n      </div>\n'
+    + '\n      <div class="pagination" id="showcases-pagination"></div>\n'
+    + '      </div>\n'
 )
 
 html += all_videos_panel + showcases_panel + (
