@@ -8,6 +8,7 @@ and writes the result to data.json for use by the site builder.
 import json
 import os
 import sys
+import time
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone
@@ -18,6 +19,11 @@ if not VIMEO_TOKEN:
     sys.exit(1)
 
 BASE_URL = "https://api.vimeo.com"
+# Vimeo occasionally returns a 500 mid-pagination (run 36686673508, page 9);
+# retry temporary errors instead of failing the whole night's update.
+RETRY_STATUSES = {429, 500, 502, 503, 504}
+RETRY_WAITS = [10, 30, 60]
+
 HEADERS = {
     "Authorization": f"Bearer {VIMEO_TOKEN}",
     "Accept": "application/vnd.vimeo.*+json;version=3.4",
@@ -35,12 +41,19 @@ def vimeo_get(path, params=None):
     all_data = []
     while url:
         req = urllib.request.Request(url, headers=HEADERS)
-        try:
-            with urllib.request.urlopen(req) as resp:
-                body = json.loads(resp.read().decode())
-        except urllib.error.HTTPError as e:
-            print(f"HTTP error {e.code} fetching {url}: {e.reason}", file=sys.stderr)
-            sys.exit(1)
+        for attempt, wait in enumerate([*RETRY_WAITS, None], start=1):
+            try:
+                with urllib.request.urlopen(req) as resp:
+                    body = json.loads(resp.read().decode())
+                break
+            except urllib.error.HTTPError as e:
+                if e.code in RETRY_STATUSES and wait is not None:
+                    print(f"HTTP error {e.code} fetching {url} (attempt {attempt}); retrying in {wait}s",
+                          file=sys.stderr)
+                    time.sleep(wait)
+                    continue
+                print(f"HTTP error {e.code} fetching {url}: {e.reason}", file=sys.stderr)
+                sys.exit(1)
 
         all_data.extend(body.get("data", []))
 
